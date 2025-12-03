@@ -2,7 +2,7 @@ use std::{fs, ops::RangeInclusive};
 
 fn is_invalid_v1(id: i64) -> bool {
     let str = id.to_string();
-    if str.len() % 2 == 0 {
+    if str.len().is_multiple_of(2) {
         let middle = str.len() / 2;
         str[..middle] == str[middle..]
     } else {
@@ -14,7 +14,7 @@ fn is_invalid_v2(id: i64) -> bool {
     let id = id.to_string();
     // split the string into all possible chunks
     (2..=id.len()).any(|i| {
-        if id.len() % i == 0 {
+        if id.len().is_multiple_of(i) {
             id.as_bytes()
                 .chunks(id.len() / i)
                 .map(|c| -> &str { std::str::from_utf8(c).unwrap() })
@@ -28,7 +28,7 @@ fn is_invalid_v2(id: i64) -> bool {
     })
 }
 
-fn all_ids(s: &String) -> impl Iterator<Item = i64> {
+fn all_ids(s: &str) -> impl Iterator<Item = i64> {
     s.trim()
         .split(',')
         .map(|s| s.split_once('-').unwrap())
@@ -41,11 +41,8 @@ fn all_ids(s: &String) -> impl Iterator<Item = i64> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let string = fs::read_to_string("data/input")?;
 
-    let first_answer: i64 =
-        all_ids(&string).fold(0, |acc, id| if is_invalid_v1(id) { acc + id } else { acc });
-
-    let second_answer: i64 =
-        all_ids(&string).fold(0, |acc, id| if is_invalid_v2(id) { acc + id } else { acc });
+    let first_answer: i64 = all_ids(&string).filter(|id| is_invalid_v1(*id)).sum();
+    let second_answer: i64 = all_ids(&string).filter(|id| is_invalid_v2(*id)).sum();
 
     println!("First answer: {}", first_answer);
     println!("Second answer: {}", second_answer);
