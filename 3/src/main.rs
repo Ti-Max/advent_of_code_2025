@@ -1,4 +1,4 @@
-use std::{fs, usize};
+use std::fs;
 
 fn find_largest_number_v1(line: &str) -> u64 {
     // reverse to get the first maximum digit
@@ -54,8 +54,8 @@ fn find_largest_number_v2(line: &str) -> u64 {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = fs::read_to_string("data/input")?;
 
-    let first_answer: u64 = file.lines().map(|line| find_largest_number_v1(line)).sum();
-    let second_answer: u64 = file.lines().map(|line| find_largest_number_v2(line)).sum();
+    let first_answer: u64 = file.lines().map(find_largest_number_v1).sum();
+    let second_answer: u64 = file.lines().map(find_largest_number_v2).sum();
 
     println!("First answer: {}", first_answer);
     println!("Second answer: {}", second_answer);
