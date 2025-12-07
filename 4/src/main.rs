@@ -1,64 +1,152 @@
-use std::fs;
+use std::{char, fs, usize};
 
-fn find_largest_number_v1(line: &str) -> u64 {
-    // reverse to get the first maximum digit
-    let (index_from_end, first_digit) = line
-        .chars()
-        .rev()
-        .enumerate()
-        .skip(1)
-        .max_by_key(|(_i, d)| *d)
-        .expect("line should not be empty");
-
-    let second_digit = line
-        .chars()
-        .skip(line.len() - index_from_end)
-        .max()
-        .expect("line shold contain at least two digits");
-
-    [first_digit, second_digit]
-        .iter()
-        .collect::<String>()
-        .parse()
-        .unwrap()
+// should be facter than Vec<Vec<>>
+struct Grid<T: PartialEq> {
+    width: usize,
+    #[allow(unused)]
+    height: usize,
+    arr: Vec<T>,
 }
 
-const BATTERIES_COUNT: usize = 12;
+impl<T: PartialEq> Grid<T> {
+    fn from_file(file: &str) -> Grid<char> {
+        let lines: Vec<&str> = file.lines().collect();
+        let height = lines.len();
+        let width = lines
+            .iter()
+            .next()
+            .expect("file should not be empty")
+            .trim()
+            .len();
 
-fn find_largest_number_v2(line: &str) -> u64 {
-    // reverse to get the first maximum digit
+        let mut arr = vec![];
+        for line in lines {
+            arr.extend(line.trim().chars());
+        }
 
-    (0..BATTERIES_COUNT)
-        .scan(0, |state, i| {
-            let (index_from_end, digit) = line
-                .chars()
-                .skip(*state)
-                // can't do rev() because "the trait bound is not satisfied bla bla bla"
-                .collect::<String>()
-                .chars()
-                .rev()
-                .enumerate()
-                .skip(BATTERIES_COUNT - i - 1)
-                .max_by_key(|(_i, d)| *d)
-                .unwrap();
+        Grid::<char> { width, height, arr }
+    }
 
-            *state = line.len() - index_from_end;
+    fn get(&self, x: usize, y: usize) -> &T {
+        &self.arr[x + y * self.width]
+    }
 
-            Some(digit)
-        })
-        .collect::<String>()
-        .parse()
-        .unwrap()
+    fn set(&mut self, x: usize, y: usize, value: T) {
+        self.arr[x + y * self.width] = value;
+    }
+
+    fn count_adjacent_items(&self, x: usize, y: usize, compare_item: T) -> usize {
+        // @ @ @
+        // @ X @
+        // @ @ @
+        let offsets: [(isize, isize); 8] = [
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (-1, 0),
+            (1, 0),
+            (-1, 1),
+            (0, 1),
+            (1, 1),
+        ];
+        offsets
+            .into_iter()
+            .filter(|(offset_x, offset_y)| {
+                let x = (x as isize) + offset_x;
+                let y = (y as isize) + offset_y;
+                if x >= 0 && (x as usize) < self.width && y >= 0 && (y as usize) < self.height {
+                    *(self.get(x as usize, y as usize)) == compare_item
+                } else {
+                    false
+                }
+            })
+            .count()
+    }
+}
+
+fn solve_first_part(grid: &Grid<char>) -> u32 {
+    let mut rolls = 0;
+
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            if *(grid.get(x, y)) == '@' {
+                if grid.count_adjacent_items(x, y, '@') < 4 {
+                    rolls += 1;
+                }
+            }
+        }
+    }
+    rolls
+}
+
+fn solve_second_part(mut grid: Grid<char>, rolls_count: u32) -> (Grid<char>, u32) {
+    let mut rolls = 0;
+
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            if *(grid.get(x, y)) == '@' {
+                if grid.count_adjacent_items(x, y, '@') < 4 {
+                    grid.set(x, y, '.');
+                    rolls += 1;
+                }
+            }
+        }
+    }
+    if rolls > 0 {
+        solve_second_part(grid, rolls_count + rolls)
+    } else {
+        (grid, rolls_count + rolls)
+    }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = fs::read_to_string("data/input")?;
 
-    let first_answer: u64 = file.lines().map(find_largest_number_v1).sum();
-    let second_answer: u64 = file.lines().map(find_largest_number_v2).sum();
+    let grid = Grid::<char>::from_file(&file);
+
+    let first_answer = solve_first_part(&grid);
+    let (_grid, second_answer) = solve_second_part(grid, 0);
 
     println!("First answer: {}", first_answer);
     println!("Second answer: {}", second_answer);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Grid, solve_first_part, solve_second_part};
+
+    const INPUT: &str = "..@@.@@@@.
+@@@.@.@.@@
+@@@@@.@.@@
+@.@@@@..@.
+@@.@@@@.@@
+.@@@@@@@.@
+.@.@.@.@@@
+@.@@@.@@@@
+.@@@@@@@@.
+@.@.@@@.@.";
+
+    #[test]
+    fn test_grid() {
+        let grid = Grid::<char>::from_file(INPUT);
+        assert_eq!(*grid.get(0, 0), '.');
+        assert_eq!(*grid.get(0, 1), '@');
+        assert_eq!(*grid.get(3, 1), '.');
+    }
+
+    #[test]
+    fn test_first_part() {
+        let grid = Grid::<char>::from_file(INPUT);
+
+        assert_eq!(solve_first_part(&grid), 13);
+    }
+
+    #[test]
+    fn test_second_part() {
+        let grid = Grid::<char>::from_file(INPUT);
+        let (_, rolls) = solve_second_part(grid, 0);
+        assert_eq!(rolls, 43);
+    }
 }
