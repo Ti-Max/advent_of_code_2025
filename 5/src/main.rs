@@ -1,111 +1,59 @@
-use std::{char, fs, usize};
+use std::{fs::read_to_string, ops::RangeInclusive};
 
-// should be facter than Vec<Vec<>>
-struct Grid<T: PartialEq> {
-    width: usize,
-    #[allow(unused)]
-    height: usize,
-    arr: Vec<T>,
-}
+fn solve_first_part(file: &str) -> u32 {
+    let mut lines = file.lines();
 
-impl<T: PartialEq> Grid<T> {
-    fn from_file(file: &str) -> Grid<char> {
-        let lines: Vec<&str> = file.lines().collect();
-        let height = lines.len();
-        let width = lines
-            .iter()
-            .next()
-            .expect("file should not be empty")
-            .trim()
-            .len();
+    let ranges: Vec<RangeInclusive<i64>> = lines
+        .by_ref()
+        .take_while(|line| !line.trim().is_empty())
+        .map(|line| {
+            let (start, end) = line.trim().split_once('-').unwrap();
+            start.parse().unwrap()..=end.parse().unwrap()
+        })
+        .collect();
 
-        let mut arr = vec![];
-        for line in lines {
-            arr.extend(line.trim().chars());
-        }
-
-        Grid::<char> { width, height, arr }
-    }
-
-    fn get(&self, x: usize, y: usize) -> &T {
-        &self.arr[x + y * self.width]
-    }
-
-    fn set(&mut self, x: usize, y: usize, value: T) {
-        self.arr[x + y * self.width] = value;
-    }
-
-    fn count_adjacent_items(&self, x: usize, y: usize, compare_item: T) -> usize {
-        // @ @ @
-        // @ X @
-        // @ @ @
-        let offsets: [(isize, isize); 8] = [
-            (-1, -1),
-            (0, -1),
-            (1, -1),
-            (-1, 0),
-            (1, 0),
-            (-1, 1),
-            (0, 1),
-            (1, 1),
-        ];
-        offsets
-            .into_iter()
-            .filter(|(offset_x, offset_y)| {
-                let x = (x as isize) + offset_x;
-                let y = (y as isize) + offset_y;
-                if x >= 0 && (x as usize) < self.width && y >= 0 && (y as usize) < self.height {
-                    *(self.get(x as usize, y as usize)) == compare_item
-                } else {
-                    false
-                }
+    lines
+        .filter(|line| {
+            ranges.iter().any(|range| {
+                let a = &line.trim().parse::<i64>().unwrap();
+                range.contains(a)
             })
-            .count()
-    }
+        })
+        .count() as u32
 }
 
-fn solve_first_part(grid: &Grid<char>) -> u32 {
-    let mut rolls = 0;
+fn solve_second_part(file: &str) -> i64 {
+    let lines = file.lines();
 
-    for y in 0..grid.height {
-        for x in 0..grid.width {
-            if *(grid.get(x, y)) == '@' {
-                if grid.count_adjacent_items(x, y, '@') < 4 {
-                    rolls += 1;
-                }
+    let mut ranges: Vec<RangeInclusive<i64>> = lines
+        .take_while(|line| !line.trim().is_empty())
+        .map(|line| {
+            let (start, end) = line.trim().split_once('-').unwrap();
+            start.parse().unwrap()..=end.parse().unwrap()
+        })
+        .collect();
+
+    ranges.sort_by_key(|r| *r.start());
+
+    ranges
+        .into_iter()
+        .scan(0, |max_end, mut r| {
+            if *max_end >= *r.start() {
+                r = (*max_end + 1)..=*r.end();
             }
-        }
-    }
-    rolls
-}
 
-fn solve_second_part(mut grid: Grid<char>, rolls_count: u32) -> (Grid<char>, u32) {
-    let mut rolls = 0;
-
-    for y in 0..grid.height {
-        for x in 0..grid.width {
-            if *(grid.get(x, y)) == '@' {
-                if grid.count_adjacent_items(x, y, '@') < 4 {
-                    grid.set(x, y, '.');
-                    rolls += 1;
-                }
-            }
-        }
-    }
-    if rolls > 0 {
-        solve_second_part(grid, rolls_count + rolls)
-    } else {
-        (grid, rolls_count + rolls)
-    }
+            *max_end = (*max_end).max(*r.end());
+            Some(r)
+        })
+        .map(|r| 0.max(*r.end() - *r.start() + 1))
+        .sum::<i64>()
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let file = fs::read_to_string("data/input")?;
+    let file = read_to_string("data/input")?;
 
-    let grid = Grid::<char>::from_file(&file);
-
-    let first_answer = solve_first_part(&grid);
-    let (_grid, second_answer) = solve_second_part(grid, 0);
+    let first_answer = solve_first_part(&file);
+    let second_answer = solve_second_part(&file);
 
     println!("First answer: {}", first_answer);
     println!("Second answer: {}", second_answer);
@@ -115,38 +63,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Grid, solve_first_part, solve_second_part};
+    use crate::{solve_first_part, solve_second_part};
 
-    const INPUT: &str = "..@@.@@@@.
-@@@.@.@.@@
-@@@@@.@.@@
-@.@@@@..@.
-@@.@@@@.@@
-.@@@@@@@.@
-.@.@.@.@@@
-@.@@@.@@@@
-.@@@@@@@@.
-@.@.@@@.@.";
+    const INPUT: &str = "3-5
+5-5
+12-18
+17-40
 
-    #[test]
-    fn test_grid() {
-        let grid = Grid::<char>::from_file(INPUT);
-        assert_eq!(*grid.get(0, 0), '.');
-        assert_eq!(*grid.get(0, 1), '@');
-        assert_eq!(*grid.get(3, 1), '.');
-    }
+1
+5
+8
+11
+17
+32";
 
     #[test]
     fn test_first_part() {
-        let grid = Grid::<char>::from_file(INPUT);
-
-        assert_eq!(solve_first_part(&grid), 13);
+        assert_eq!(solve_first_part(&INPUT), 3);
     }
 
     #[test]
     fn test_second_part() {
-        let grid = Grid::<char>::from_file(INPUT);
-        let (_, rolls) = solve_second_part(grid, 0);
-        assert_eq!(rolls, 43);
+        assert_eq!(solve_second_part(&INPUT), 14);
     }
 }
