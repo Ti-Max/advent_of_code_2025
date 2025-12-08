@@ -5,7 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match std::env::var("ADVENT_OF_CODE_SESSION") {
         Ok(session) => {
             let text = client
-            .get("https://adventofcode.com/2025/day/5/input")
+            .get("https://adventofcode.com/2025/day/6/input")
             .header(reqwest::header::COOKIE, format!("session={}", session))
             .send()?
             .text()?;

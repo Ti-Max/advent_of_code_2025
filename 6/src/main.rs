@@ -1,52 +1,59 @@
-use std::{fs::read_to_string, ops::RangeInclusive};
+use std::{char, fs::read_to_string};
 
-fn solve_first_part(file: &str) -> u32 {
-    let mut lines = file.lines();
+fn solve_first_part(file: &str) -> i64 {
+    let mut iter = file.lines().rev().map(|l| l.split_whitespace());
+    let operations: Vec<&str> = iter.next().unwrap().collect();
 
-    let ranges: Vec<RangeInclusive<i64>> = lines
-        .by_ref()
-        .take_while(|line| !line.trim().is_empty())
-        .map(|line| {
-            let (start, end) = line.trim().split_once('-').unwrap();
-            start.parse().unwrap()..=end.parse().unwrap()
-        })
+    let grid: Vec<Vec<i64>> = iter
+        .rev()
+        .map(|line| line.map(|n| n.parse().unwrap()).collect())
         .collect();
 
-    lines
-        .filter(|line| {
-            ranges.iter().any(|range| {
-                let a = &line.trim().parse::<i64>().unwrap();
-                range.contains(a)
-            })
+    (0..grid[0].len())
+        .map(|x| {
+            let nums = (0..grid.len()).map(|y| grid[y][x]);
+            match operations[x] {
+                "+" => nums.sum::<i64>(),
+                "*" => nums.product::<i64>(),
+                _ => panic!("operation must be + or *"),
+            }
         })
-        .count() as u32
+        .sum()
+}
+
+fn transpose(grid: Vec<Vec<char>>) -> Vec<Vec<char>> {
+    let cols = grid[0].len();
+
+    (0..cols)
+        .map(|c| grid.iter().map(|row| row[c]).collect())
+        .collect()
 }
 
 fn solve_second_part(file: &str) -> i64 {
-    let lines = file.lines();
+    let mut lines: Vec<&str> = file.lines().collect();
+    let operations: Vec<&str> = lines.pop().unwrap().split_whitespace().collect();
 
-    let mut ranges: Vec<RangeInclusive<i64>> = lines
-        .take_while(|line| !line.trim().is_empty())
-        .map(|line| {
-            let (start, end) = line.trim().split_once('-').unwrap();
-            start.parse().unwrap()..=end.parse().unwrap()
-        })
-        .collect();
-
-    ranges.sort_by_key(|r| *r.start());
-
-    ranges
+    let grid: Vec<Vec<char>> = lines
         .into_iter()
-        .scan(0, |max_end, mut r| {
-            if *max_end >= *r.start() {
-                r = (*max_end + 1)..=*r.end();
-            }
+        .map(|line| line.chars().collect())
+        .collect();
+    let grid = transpose(grid);
 
-            *max_end = (*max_end).max(*r.end());
-            Some(r)
+    grid.into_iter()
+        .map(|chars| chars.into_iter().filter(|c| *c != ' ').collect::<String>())
+        .collect::<Vec<String>>()
+        .split(|str| str.is_empty())
+        .zip(operations)
+        .map(|(numbers, op)| {
+            let nums = numbers.iter().map(|num| num.parse::<i64>().unwrap());
+
+            match op {
+                "+" => nums.sum::<i64>(),
+                "*" => nums.product::<i64>(),
+                _ => panic!("operation must be + or *"),
+            }
         })
-        .map(|r| 0.max(*r.end() - *r.start() + 1))
-        .sum::<i64>()
+        .sum()
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -65,25 +72,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use crate::{solve_first_part, solve_second_part};
 
-    const INPUT: &str = "3-5
-5-5
-12-18
-17-40
-
-1
-5
-8
-11
-17
-32";
+    const INPUT: &str = "123 328  51 64 
+ 45 64  387 23 
+  6 98  215 314
+*   +   *   +";
 
     #[test]
     fn test_first_part() {
-        assert_eq!(solve_first_part(&INPUT), 3);
+        assert_eq!(solve_first_part(&INPUT), 4277556);
     }
 
     #[test]
     fn test_second_part() {
-        assert_eq!(solve_second_part(&INPUT), 14);
+        assert_eq!(solve_second_part(&INPUT), 3263827);
     }
 }
