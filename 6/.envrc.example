@@ -1,0 +1,3 @@
+# to download input
+export ADVENT_OF_CODE_SESSION="extract it from the cookie"
+use flake
